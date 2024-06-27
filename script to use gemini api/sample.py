@@ -1,5 +1,4 @@
 import google.generativeai as genai
-# from settings import API_KEY
 
 PROMPT = """your prompt here"""
 
