@@ -1,4 +1,4 @@
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont,ImageStat,ImageEnhance,ImageFilter
 
 def wrap_text(draw, text, font, max_width):
     words = text.split()
@@ -40,6 +40,22 @@ def dynamically_adjust_font(draw, text, font, max_width, max_height, padding):
         total_height, _ = get_wrapped_text_size(draw, lines, font, padding)
     return font, lines
 
+def is_image_dark(image, dark_threshold=85, light_threshold=170):
+    """Determine if the image is predominantly dark, light or in the middle and return a suitable color for overlay"""
+    grayscale = image.convert('L')  # Convert to grayscale
+    stat = ImageStat.Stat(grayscale)
+    avg_brightness = stat.mean[0]
+
+    if avg_brightness < dark_threshold:
+        return ('dark','yellow')
+    elif avg_brightness > light_threshold:
+        return ('light','red')
+    else:
+        if avg_brightness < 128:
+            return 'mid-dark', 'yellow' 
+        else:
+            return 'mid-light', 'red'  
+        
 def add_text_to_image(image_path, text, is_title=True, save_to=None):
     # Load the image
     image = Image.open(image_path)
@@ -50,11 +66,28 @@ def add_text_to_image(image_path, text, is_title=True, save_to=None):
     # Get resized image dimensions
     image_width, image_height = resized_image.size
 
+    image_brightness_level = is_image_dark(resized_image)
+
+    if image_brightness_level[0] == 'mid-dark':
+        enhancer = ImageEnhance.Contrast(resized_image);
+        resized_image = enhancer.enhance(0.75)
+    elif image_brightness_level[0] == 'mid-light':
+        enhancer = ImageEnhance.Contrast(resized_image);
+        resized_image = enhancer.enhance(1.2)
+        resized_image = resized_image.filter(ImageFilter.SMOOTH_MORE)
+    else:
+        resized_image = resized_image.filter(ImageFilter.DETAIL)
+
+
+
+
     # Create a drawing object
     draw = ImageDraw.Draw(resized_image)
 
+
     # Define fonts
     fonts = {
+        "black": ImageFont.truetype("Roboto/Roboto-Black.ttf", 40),
         "bold": ImageFont.truetype("Roboto/Roboto-Bold.ttf", 35),
         "medium": ImageFont.truetype("Roboto/Roboto-Medium.ttf", 40),
         "light": ImageFont.truetype("Roboto/Roboto-Light.ttf", 30),
@@ -93,7 +126,7 @@ def add_text_to_image(image_path, text, is_title=True, save_to=None):
             draw_text_centered(draw, lines, (safe_margin, rect_y0 + padding), font, rect_x1 - rect_x0, padding, fill='black')
 
     else:
-        font = fonts["medium"]
+        font = fonts["black"]
         max_width = image_width - 2 * safe_margin
         max_height = (image_height - 2 * safe_margin) // 2
 
@@ -110,7 +143,8 @@ def add_text_to_image(image_path, text, is_title=True, save_to=None):
             position = (safe_margin, safe_margin + (image_height - total_height) // 2)
 
             # Draw wrapped and centered text
-            draw_text_centered(draw, lines, position, font, max_width, padding)
+            description_color =  image_brightness_level[1]
+            draw_text_centered(draw, lines, position, font, max_width, padding,fill=description_color)
 
     # Save the image if save_to is provided
     if save_to:
@@ -124,5 +158,7 @@ if __name__ == '__main__':
     title_text = "Top 5 mountains in the world"
     description_text = "Mount Everest"
 
-    add_text_to_image('test.png', title_text, is_title=True, save_to='output_title.png')
-    add_text_to_image('test.png', description_text, is_title=False, save_to='output_description.png')
+    add_text_to_image('test.png', description_text, is_title=True)  
+    add_text_to_image('medium.jpeg', description_text, is_title=False)   # image with dark backgrouond  
+    add_text_to_image('test.png', description_text, is_title=False)   # image with dark backgrouond
+    add_text_to_image('white.png', description_text, is_title=False)   # image with dark backgrouond
