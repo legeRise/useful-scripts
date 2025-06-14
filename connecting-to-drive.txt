@@ -1,0 +1,135 @@
+// Had a React frontend with just one button 'Connect to Drive' which allows users to connect their drive to my application 
+// and the backend was in django(DRF + Djoser)
+
+// now to allow user connecting drive following were he steps 
+
+
+// 1. create google cloud project   like  connecting to drive
+// 2. enable google drive api
+// 3. create oauth consent screen where you decide users allowed, should it be in production or in testing and then set credentials
+
+// two meain things need to be configured
+
+// 1. javascript origin urls: so tells which domain your frontend is at so that google knows this is your site requesting 
+// set two urls 
+// 1. localhost:3000 5173 or so on
+// 2. your main https domain  like  https://mysite.com
+
+// 2. then redirect urls is where you set that where google will redirect the user after drive is connecteed
+
+
+// so basically you need to urls
+
+// 1. start url
+// 2. callback url   in your backend 
+
+
+// clicking the connect button from frontend makes a requests to 'start_url' which is a view in your backend responsible for generating the link where you will
+// connect to your drive  so this view returns this link to your frontend an your frontend loads it in the browser
+
+// once it is loaded you see google screen where it asks for your account 
+// then it takes you to consent screen there you authorize my application and then it returns you to that 'callback' url which has a way to figure if you connected successfully or not
+// and based on that it redirects you to appropriate page like 'connected to drive'  'failed to connect'
+
+
+# ✅ Connect Google Drive to Your App (React + Django)
+
+Your stack:
+- **Frontend**: React (just a “Connect to Drive” button)
+- **Backend**: Django REST Framework + Djoser (handles Google OAuth logic)
+
+---
+
+## 🚀 Step-by-Step Setup
+
+### 1. Create a Google Cloud Project
+- Go to [Google Cloud Console](https://console.cloud.google.com/)
+- Create a project (e.g., **Connect Drive App**)
+
+### 2. Enable the Google Drive API
+- In your project, go to “APIs & Services” → “Library”
+- Search for **Google Drive API** and enable it
+
+### 3. Set Up OAuth Consent Screen
+- Choose “External” for user type (or “Internal” if you're testing within an organization)
+- Fill in the necessary app info (app name, support email, etc.)
+- Add scopes: `https://www.googleapis.com/auth/drive.file`
+- Add test users (if not publishing)
+
+### 4. Create OAuth 2.0 Credentials
+- Go to “Credentials” → “Create Credentials” → “OAuth Client ID”
+- Choose **Web Application**
+- **Set these two configurations:**
+
+---
+
+## 🌐 Required URLs
+
+### ✅ Authorized JavaScript Origins
+These are the frontend URLs that can start the OAuth request:
+```
+http://localhost:3000
+http://localhost:5173
+https://yourfrontend.com
+```
+
+### ✅ Authorized Redirect URIs
+This is the **backend URL** Google will redirect to after the user connects Drive:
+```
+http://localhost:8000/api/auth/google/callback/
+https://yourbackend.com/api/auth/google/callback/
+```
+
+---
+
+## 🧠 Flow Overview
+
+### Step 1: Start URL (`/api/auth/google/start/`)
+- **Purpose**: Generates a secure Google OAuth URL
+- **How**: Your React frontend sends a GET request to this endpoint
+- **Response**: JSON with `authorization_url`
+- **Frontend**: Redirects browser to that URL
+
+### Step 2: Google Flow
+- User sees Google login → selects account
+- User sees **consent screen** → clicks “Allow”
+- Google redirects to your `callback URL` with:
+  ```
+  ?code=...&state=...
+  ```
+
+### Step 3: Callback URL (`/api/auth/google/callback/`)
+- Your Django backend:
+  - Verifies the signed `state` to match the user
+  - Exchanges the code for tokens
+  - Stores Drive credentials in DB
+  - Redirects user back to frontend with status:
+    - Success → `/dashboard?drive_connected=true`
+    - Failure → `/error?message=...`
+
+---
+
+## 🎯 Summary of Endpoints
+
+| Endpoint                         | Purpose                             |
+|----------------------------------|-------------------------------------|
+| `/api/auth/google/start/`        | Generates Google auth URL           |
+| `/api/auth/google/callback/`     | Handles Google redirect & stores tokens |
+
+---
+
+## 💡 React Button Example
+
+```jsx
+const connectToDrive = async () => {
+  const res = await fetch('https://yourbackend.com/api/auth/google/start/', {
+    headers: { Authorization: `Bearer ${your_jwt_token}` }
+  });
+  const data = await res.json();
+  window.location.href = data.authorization_url;
+};
+```
+
+---
+
+Let me know if you want a markdown version of this saved to a `.md` file or shown as a page in your app.
